@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Painel de Triagem Avançada (SARIF)</title>
+    <style>
+      :root {
+        --bg-main: #f1f5f9;
+        --bg-card: #ffffff;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --border-color: #cbd5e1;
+
+        /* Severidades */
+        --critical: #ef4444;
+        --high: #f97316;
+        --medium: #eab308;
+        --low: #3b82f6;
+        --warning: #64748b;
+      }
+
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        margin: 0;
+        padding: 20px;
+        padding-top: 85px; /* Espaço para a barra fixa */
+        background-color: var(--bg-main);
+        color: var(--text-main);
+      }
+
+      /* BARRA TOPO FIXA */
+      .top-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 65px;
+        background: #0f172a;
+        color: #ffffff;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 30px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+      }
+
+      .top-bar h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+
+      .export-btn {
+        background: #22c55e;
+        color: white;
+        border: none;
+        padding: 10px 18px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background 0.2s;
+      }
+
+      .export-btn:hover {
+        background: #16a34a;
+      }
+
+      /* PAINEL DE CONTROLE / FILTROS */
+      .filter-panel {
+        background: var(--bg-card);
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: center;
+      }
+
+      .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .filter-group label {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-muted);
+      }
+
+      .filter-group select {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        background: #fff;
+        color: var(--text-main);
+        font-size: 14px;
+        outline: none;
+      }
+
+      /* CHECKBOX CUSTOMIZADO PARA WARNINGS */
+      .warning-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-main);
+        user-select: none;
+      }
+
+      .warning-toggle input {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+      }
+
+      .counter-badge {
+        margin-left: auto;
+        background: #e2e8f0;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+      }
+
+      .counter-badge span {
+        color: #0284c7;
+      }
+
+      /* ESTRUTURA DE REPOSITÓRIOS */
+      .repo-section {
+        margin-bottom: 35px;
+      }
+
+      .repo-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 15px;
+        padding: 10px 15px;
+        background: #e2e8f0;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.2s;
+      }
+
+      .repo-header:hover {
+        background: #cbd5e1;
+      }
+
+      .repo-header h3 {
+        margin: 0;
+        font-size: 16px;
+        color: #1e293b;
+      }
+
+      /* Indicador visual de expansão (Setas) */
+      .repo-header::after {
+        content: "▼";
+        font-size: 12px;
+        color: #64748b;
+        transition: transform 0.2s ease;
+      }
+
+      /* CONFIGURAÇÃO DO EFEITO SANFONA (REPOSITÓRIO) */
+      .repo-section.collapsed .repo-container-body {
+        display: none !important;
+      }
+
+      .repo-section.collapsed .repo-header::after {
+        transform: rotate(-90deg);
+      }
+
+      /* ESTRUTURA DOS COMPONENTES AGRUPADOS */
+      .component-block {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        overflow: hidden;
+      }
+
+      .component-header {
+        background: #f8fafc;
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--border-color);
+        font-family: monospace;
+        font-size: 14px;
+        font-weight: bold;
+        color: #334155;
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.2s;
+      }
+
+      .component-header:hover {
+        background: #f1f5f9;
+      }
+
+      .component-header::after {
+        content: "▼";
+        font-size: 11px;
+        color: #64748b;
+        transition: transform 0.2s ease;
+      }
+
+      /* CONFIGURAÇÃO DO EFEITO SANFONA (COMPONENTE) */
+      .component-block.collapsed .vuln-cards-wrapper {
+        display: none !important;
+      }
+
+      .component-block.collapsed .component-header::after {
+        transform: rotate(-90deg);
+      }
+
+      /* CARDS DE VULNERABILIDADES INTERNAS */
+      .vuln-card {
+        padding: 20px;
+        border-bottom: 1px solid #f1f5f9;
+        position: relative;
+      }
+
+      .vuln-card:last-child {
+        border-bottom: none;
+      }
+
+      .vuln-meta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: bold;
+        color: white;
+        text-transform: uppercase;
+      }
+      .badge.critical {
+        background: var(--critical);
+      }
+      .badge.high {
+        background: var(--high);
+      }
+      .badge.medium {
+        background: var(--medium);
+      }
+      .badge.low {
+        background: var(--low);
+      }
+      .badge.warning {
+        background: var(--warning);
+      }
+
+      .tool-tag {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+
+      /* BOTÃO DELETAR CARD */
+      .delete-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: #fee2e2;
+        color: #ef4444;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .delete-btn:hover {
+        background: #ef4444;
+        color: white;
+      }
+
+      /* INPUTS EDITÁVEIS */
+      .edit-label {
+        display: block;
+        font-size: 11px;
+        font-weight: bold;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+        margin-top: 10px;
+      }
+
+      .editable-title {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-main);
+        outline: none;
+      }
+
+      .editable-title:focus,
+      .editable-text:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 1px #3b82f6;
+      }
+
+      .editable-text {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-family: inherit;
+        color: #475569;
+        resize: vertical;
+        outline: none;
+      }
+
+      .recommendation-box {
+        margin-top: 12px;
+        background: #f0fdf4;
+        border: 1px dashed #bbf7d0;
+        padding: 10px 15px;
+        border-radius: 4px;
+        font-size: 12.5px;
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="top-bar">
+      <h2>🛠️ MODO TRIAGEM: Gestão de Falsos Positivos</h2>
+      <button class="export-btn" onclick="exportNewSarif()">
+        💾 Exportar SARIF Triado
+      </button>
+    </div>
+
+    <div class="filter-panel">
+      <div class="filter-group">
+        <label for="filter-tool">Ferramenta:</label>
+        <select id="filter-tool" onchange="applyFilters()">
+          <option value="all">Todas</option>
+          <option value="Trivy">Trivy</option>
+          <option value="Semgrep OSS">Semgrep OSS</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="filter-severity">Severidade:</label>
+        <select id="filter-severity" onchange="applyFilters()">
+          <option value="all">Todas</option>
+          <option value="CRITICAL">Critical</option>
+          <option value="HIGH">High</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="LOW">Low</option>
+        </select>
+      </div>
+
+      <label class="warning-toggle">
+        <input
+          type="checkbox"
+          id="hide-warnings"
+          onchange="applyFilters()"
+          checked
+        />
+        Ocultar Alertas de Sistema / Warnings
+      </label>
+
+      <div class="counter-badge">
+        Exibindo <span id="visible-count">0</span> vulnerabilidades.
+      </div>
+    </div>
+
+    {% for repo in repositories %}
+    <div class="repo-section collapsed" id="repo-block-{{ loop.index }}">
+      <div class="repo-header" onclick="toggleRepo(this)">
+        <h3>📁 Repositório: {{ repo.name }}</h3>
+      </div>
+
+      <div class="repo-container-body">
+        {% for group in repo.findings %}
+        <div
+          class="component-block collapsed"
+          data-component-name="{{ group.target_name }}"
+        >
+          <div class="component-header" onclick="toggleComponent(this)">
+            <span>📦 Alvo / Componente: {{ group.target_name }}</span>
+          </div>
+
+          <div class="vuln-cards-wrapper">
+            {% for item in group.vulnerabilities %}
+            <div
+              class="vuln-card"
+              data-tool="{{ item.tool }}"
+              data-severity="{{ item.severity }}"
+              data-run-idx="{{ item.run_index }}"
+              data-res-idx="{{ item.result_index }}"
+            >
+              <button class="delete-btn" onclick="deleteCard(this)">
+                ❌ Remover Alerta
+              </button>
+
+              <div class="vuln-meta">
+                <span class="badge {{ item.severity | lower }}"
+                  >{{ item.severity }}</span
+                >
+                <span class="tool-tag"
+                  >Scanner: <strong>{{ item.tool }}</strong></span
+                >
+              </div>
+
+              <span class="edit-label">TÍTULO DO ACHADO</span>
+              <input
+                type="text"
+                class="editable-title"
+                value="{{ item.title }}"
+                onchange="updateSarifValue(this, 'title')"
+              />
+
+              <span class="edit-label">DESCRIÇÃO DA VULNERABILIDADE</span>
+              <textarea
+                class="editable-text"
+                rows="4"
+                onchange="updateSarifValue(this, 'description')"
+              >
+{{ item.description | trim }}</textarea
+              >
+
+              <div class="recommendation-box">
+                💡 <strong>Sugestão/Link de Mitigação:</strong> {{
+                item.fix_suggestion }}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <div id="sarif-raw-container" style="display: none">
+      {{ sarif_json_raw | safe }}
+    </div>
+
+    <script>
+      function toggleRepo(headerElement) {
+        // Encontra o bloco '.repo-section' mais próximo do cabeçalho clicado
+        const repoSection = headerElement.closest(".repo-section");
+        if (repoSection) {
+          repoSection.classList.toggle("collapsed");
+        }
+      }
+
+      // Nova função para a sanfona do Componente
+      function toggleComponent(headerElement) {
+        // Encontra o bloco '.component-block' mais próximo do cabeçalho clicado
+        const compBlock = headerElement.closest(".component-block");
+        if (compBlock) {
+          compBlock.classList.toggle("collapsed");
+        }
+      }
+      // Carregamento do JSON original injetado via Python de forma limpa/escapada
+      const sarifStringBruta = `{{ sarif_json_raw | safe }}`;
+      let sarifData = {};
+
+      try {
+        const container = document.getElementById("sarif-raw-container");
+
+        // CORREÇÃO AQUI: Trocado .strip por .trim (sintaxe correta do JavaScript)
+        const txtContent = container.textContent
+          ? container.textContent.trim()
+          : "";
+
+        const jsonTraduzido = decodeURIComponent(escape(atob(txtContent)));
+        sarifData = JSON.parse(jsonTraduzido);
+      } catch (e) {
+        console.error(
+          "Erro crítico ao processar string SARIF no front-end: ",
+          e,
+        );
+      }
+
+      // SISTEMA ATUALIZADOR DOS CAMPOS DO SARIF (CORREÇÃO DE VÍNCULO INDEPENDENTE)
+      function updateSarifValue(element, field) {
+        const card = element.closest(".vuln-card");
+        if (!card) return;
+
+        const runIdx = parseInt(card.getAttribute("data-run-idx"));
+        const resIdx = parseInt(card.getAttribute("data-res-idx"));
+        const textValue = element.value;
+
+        if (
+          sarifData &&
+          sarifData.runs &&
+          sarifData.runs[runIdx] &&
+          sarifData.runs[runIdx].results &&
+          sarifData.runs[runIdx].results[resIdx]
+        ) {
+          const result = sarifData.runs[runIdx].results[resIdx];
+
+          // Localiza a regra associada à vulnerabilidade no cabeçalho do SARIF
+          const ruleId = result.ruleId;
+          const rules = sarifData.runs[runIdx].tool.driver.rules || [];
+          const targetedRule = rules.find((r) => r.id === ruleId);
+
+          if (field === "title") {
+            // 1. Atualiza a mensagem direta da ocorrência
+            if (!result.message) result.message = {};
+            result.message.text = textValue;
+
+            // 2. Atualiza o título global na definição da Regra (shortDescription)
+            if (targetedRule) {
+              if (!targetedRule.shortDescription)
+                targetedRule.shortDescription = {};
+              targetedRule.shortDescription.text = textValue;
+            }
+          } else if (field === "description") {
+            // 1. Atualiza a mensagem direta da ocorrência (texto e markdown)
+            if (!result.message) result.message = {};
+            result.message.markdown = textValue;
+            // Só atualiza o result.message.text se ele não for idêntico ao título
+            if (result.message.text !== result.message.markdown) {
+              // Mantém consistência para parsers simples
+            }
+
+            // 2. Atualiza a descrição longa na definição da Regra (fullDescription)
+            if (targetedRule) {
+              if (!targetedRule.fullDescription)
+                targetedRule.fullDescription = {};
+              targetedRule.fullDescription.text = textValue;
+
+              // REMOVIDO DAQUI: targetedRule.shortDescription.text = textValue;
+              // (Isso era o que estava sobrescrevendo seu título com a descrição!)
+            }
+          }
+          console.log(
+            `[SARIF] Campo "${field}" atualizado independentemente no item [${runIdx}][${resIdx}].`,
+          );
+        }
+      }
+
+      // DELETAR CARD VISUALMENTE E MARCAR NO SARIF
+      function deleteCard(button) {
+        if (
+          confirm(
+            "Deseja remover este achado permanentemente do relatório limpo?",
+          )
+        ) {
+          const card = button.closest(".vuln-card");
+          const runIdx = parseInt(card.getAttribute("data-run-idx"));
+          const resIdx = parseInt(card.getAttribute("data-res-idx"));
+
+          card.style.transition = "all 0.25s ease";
+          card.style.opacity = "0";
+          card.style.transform = "scale(0.95)";
+
+          setTimeout(() => {
+            card.remove();
+            if (
+              sarifData.runs &&
+              sarifData.runs[runIdx] &&
+              sarifData.runs[runIdx].results[resIdx]
+            ) {
+              sarifData.runs[runIdx].results[resIdx].__deleted = true;
+            }
+            applyFilters(); // Atualiza contadores e remove blocos remanescentes vazios
+          }, 250);
+        }
+      }
+
+      // FUNÇÃO EXCLUSIVA PARA ALTERNAR CLASSE DE EXPANSAO (SANFONA)
+      function toggleSection(elementId) {
+        const target = document.getElementById(elementId);
+        if (target) {
+          target.classList.toggle("collapsed");
+        }
+      }
+
+      // CORE DA FILTRAGEM DINÂMICA (CORRIGIDO PARA NÃO CONFLITAR COM A SANFONA)
+      function applyFilters() {
+        const selectedTool = document.getElementById("filter-tool").value;
+        const selectedSeverity =
+          document.getElementById("filter-severity").value;
+        const hideWarnings = document.getElementById("hide-warnings").checked;
+
+        const cards = document.querySelectorAll(".vuln-card");
+        let totalVisiveis = 0;
+
+        // 1. Filtra os cards individuais de vulnerabilidade
+        cards.forEach((card) => {
+          const cardTool = card.getAttribute("data-tool");
+          const cardSeverity = card.getAttribute("data-severity");
+
+          const matchTool = selectedTool === "all" || cardTool === selectedTool;
+          const matchSeverity =
+            selectedSeverity === "all" || cardSeverity === selectedSeverity;
+          const matchWarning = !(hideWarnings && cardSeverity === "WARNING");
+
+          if (matchTool && matchSeverity && matchWarning) {
+            card.style.setProperty("display", "block", "important");
+            totalVisiveis++;
+          } else {
+            card.style.setProperty("display", "none", "important");
+          }
+        });
+
+        // Atualiza o indicador numérico na tela
+        document.getElementById("visible-count").innerText = totalVisiveis;
+
+        // 2. Gerencia os componentes vazios usando classes de filtro, sem quebrar o layout
+        document.querySelectorAll(".component-block").forEach((block) => {
+          const cardsVisiveisNoBloco = block.querySelectorAll(
+            '.vuln-card:not([style*="display: none"])',
+          ).length;
+
+          if (cardsVisiveisNoBloco === 0) {
+            block.style.setProperty("display", "none", "important");
+          } else {
+            // Remove a restrição do filtro, permitindo que a classe '.collapsed' decida se exibe ou não
+            block.style.removeProperty("display");
+          }
+        });
+
+        // 3. Gerencia os repositórios vazios
+        document.querySelectorAll(".repo-section").forEach((section) => {
+          const cardsVisiveisNoRepo = section.querySelectorAll(
+            '.vuln-card:not([style*="display: none"])',
+          ).length;
+
+          if (cardsVisiveisNoRepo === 0) {
+            section.style.setProperty("display", "none", "important");
+          } else {
+            section.style.removeProperty("display");
+          }
+        });
+      }
+
+      // EXPORTADOR NATIVO DO NOVO ARQUIVO SARIF
+      function exportNewSarif() {
+        if (!sarifData.runs) {
+          alert("Nenhum dado válido carregado para exportação.");
+          return;
+        }
+
+        // Clona o objeto de triagem em memória profunda para higienizar antes do download
+        const payloadFinal = JSON.parse(JSON.stringify(sarifData));
+
+        payloadFinal.runs.forEach((run) => {
+          if (run.results) {
+            // Filtra removendo os itens marcados com a tag de deleção (__deleted)
+            run.results = run.results.filter((res) => !res.__deleted);
+          }
+        });
+
+        // Gera o blob de transferência de download nativo do arquivo JSON formatado como .sarif
+        const dataStr =
+          "data:text/json;charset=utf-8," +
+          encodeURIComponent(JSON.stringify(payloadFinal, null, 2));
+        const downloaderNode = document.createElement("a");
+        downloaderNode.setAttribute("href", dataStr);
+        downloaderNode.setAttribute("download", "relatorio_scan_triado.sarif");
+        document.body.appendChild(downloaderNode);
+        downloaderNode.click();
+        downloaderNode.remove();
+      }
+
+      // Inicia executando os filtros básicos após o carregamento da DOM
+      document.addEventListener("DOMContentLoaded", () => {
+        applyFilters();
+      });
+    </script>
+  </body>
+</html>

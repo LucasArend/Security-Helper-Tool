@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Relatório Consolidado de Segurança</title>
+    <style>
+      :root {
+        --bg-main: #f8fafc;
+        --text-main: #1e293b;
+        --border-color: #e2e8f0;
+        --critical: #ef4444;
+        --high: #f97316;
+        --medium: #eab308;
+        --low: #3b82f6;
+        --warning: #f59e0b;
+        --unknown: #64748b;
+      }
+      body {
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        margin: 0;
+        padding: 30px;
+        background-color: var(--bg-main);
+        color: var(--text-main);
+      }
+      .header-container {
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 15px;
+        margin-bottom: 25px;
+      }
+      h1 {
+        margin: 0 0 5px 0;
+        font-size: 24pt;
+        color: #0f172a;
+      }
+      .meta-date {
+        color: #64748b;
+        font-size: 10pt;
+      }
+
+      .dashboard {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 12px 0;
+        margin-left: -12px;
+        margin-bottom: 25px;
+      }
+      .card {
+        display: table-cell;
+        background: #ffffff;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        border-top: 4px solid var(--unknown);
+      }
+      .card.critical {
+        border-top-color: var(--critical);
+      }
+      .card.high {
+        border-top-color: var(--high);
+      }
+      .card.medium {
+        border-top-color: var(--medium);
+      }
+      .card.low {
+        border-top-color: var(--low);
+      }
+      .card.warning {
+        border-top-color: var(--warning);
+      }
+
+      .card-value {
+        font-size: 20pt;
+        font-weight: bold;
+        margin-bottom: 2px;
+      }
+      .card-label {
+        font-size: 9pt;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+      }
+
+      .filter-bar {
+        margin-bottom: 20px;
+        background: #ffffff;
+        padding: 10px 15px;
+        border-radius: 6px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+      .filter-btn {
+        background: #f1f5f9;
+        border: 1px solid var(--border-color);
+        padding: 6px 12px;
+        margin-right: 5px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 10pt;
+        transition: all 0.2s;
+      }
+      .filter-btn.active,
+      .filter-btn:hover {
+        background: #0f172a;
+        color: #ffffff;
+      }
+
+      .repo-block {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        margin-bottom: 25px;
+        border: 1px solid var(--border-color);
+        overflow: hidden;
+      }
+      .repo-header {
+        background: #f8fafc;
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .repo-title {
+        margin: 0;
+        font-size: 14pt;
+        color: #1e293b;
+      }
+
+      .findings-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 10pt;
+      }
+      .findings-table th {
+        background: #f1f5f9;
+        color: #475569;
+        font-weight: 600;
+        padding: 10px 15px;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .findings-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid var(--border-color);
+        vertical-align: top;
+      }
+      .findings-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        font-weight: bold;
+        font-size: 8pt;
+        border-radius: 4px;
+        color: #ffffff;
+        text-transform: uppercase;
+      }
+      .badge.critical {
+        background-color: var(--critical);
+      }
+      .badge.high {
+        background-color: var(--high);
+      }
+      .badge.medium {
+        background-color: var(--medium);
+      }
+      .badge.low {
+        background-color: var(--low);
+      }
+      .badge.warning {
+        background-color: var(--warning);
+      }
+      .badge.unknown {
+        background-color: var(--unknown);
+      }
+
+      .tool-tag {
+        font-size: 8.5pt;
+        color: #64748b;
+        font-weight: 500;
+      }
+      .target-code {
+        font-family: monospace;
+        background: #f1f5f9;
+        padding: 4px 6px;
+        border-radius: 3px;
+        font-size: 9.5pt;
+      }
+
+      .details-text {
+        font-size: 10pt;
+        color: #334155; /* Um tom de cinza ligeiramente mais escuro para melhor contraste */
+        margin: 10px 0;
+        line-height: 1.5; /* Aumenta o espaçamento entre linhas */
+        white-space: pre-line; /* ESSA LINHA FAZ A MÁGICA: respeita os \n do SARIF */
+        word-break: break-word; /* Garante que caminhos de arquivos longos não quebrem o layout */
+        background: #f8fafc; /* Um fundo sutil para destacar o bloco de texto */
+        padding: 10px;
+        border-radius: 4px;
+        border-left: 2px solid #cbd5e1;
+      }
+
+      .fix-text {
+        font-size: 9pt;
+        color: #16a34a;
+        font-weight: 500;
+        margin-top: 6px;
+      }
+
+      details.component-details {
+        background: #fafafa;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+      }
+      details.component-details summary {
+        font-weight: 600;
+        color: #3b82f6;
+        font-size: 9.5pt;
+        cursor: pointer;
+        outline: none;
+        user-select: none;
+      }
+
+      .no-findings {
+        padding: 20px;
+        text-align: center;
+        color: #16a34a;
+        font-weight: 500;
+      }
+
+      .repo-content {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header-container">
+      <h1>Relatório Consolidado de Segurança</h1>
+      <div class="meta-date">
+        Análise Executada em: <strong>{{ generated_at }}</strong> | Escopo:
+        Trivy SCA + Semgrep SAST
+      </div>
+      <div class="meta-date">Relatório realizado por: Lucas Arend</div>
+    </div>
+
+    <div class="dashboard">
+      <div class="card critical">
+        <div class="card-value">{{ global_counters.CRITICAL }}</div>
+        <div class="card-label">Crítica</div>
+      </div>
+      <div class="card high">
+        <div class="card-value">{{ global_counters.HIGH }}</div>
+        <div class="card-label">Alta</div>
+      </div>
+      <div class="card medium">
+        <div class="card-value">{{ global_counters.MEDIUM }}</div>
+        <div class="card-label">Média</div>
+      </div>
+      <div class="card low">
+        <div class="card-value">{{ global_counters.LOW }}</div>
+        <div class="card-label">Baixa</div>
+      </div>
+      <div class="card warning">
+        <div class="card-value">{{ global_counters.WARNING }}</div>
+        <div class="card-label">Aviso (Warn)</div>
+      </div>
+      <div class="card" style="border-top-color: #0f172a">
+        <div class="card-value" id="card-total">
+          {{ total_global_findings }}
+        </div>
+        <div class="card-label">Total Geral</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <span>Filtrar por Ferramenta:</span>
+      <button class="filter-btn active" onclick="filterTool('ALL')">
+        Todas
+      </button>
+      <button class="filter-btn" onclick="filterTool('semgrep')">
+        Semgrep
+      </button>
+      <button class="filter-btn" onclick="filterTool('trivy')">Trivy</button>
+    </div>
+
+    <div
+      class="filter-bar"
+      style="
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+      "
+    >
+      <div>
+        <span>Filtrar por Severidade:</span>
+        <button
+          id="btn-all"
+          class="filter-btn active"
+          onclick="filterSeverity('ALL')"
+        >
+          Todos (<span id="count-ALL">{{ total_global_findings }}</span>)
+        </button>
+        <button class="filter-btn" onclick="filterSeverity('CRITICAL')">
+          Critical (<span id="count-CRITICAL"
+            >{{ global_counters.CRITICAL }}</span
+          >)
+        </button>
+        <button class="filter-btn" onclick="filterSeverity('HIGH')">
+          High (<span id="count-HIGH">{{ global_counters.HIGH }}</span>)
+        </button>
+        <button class="filter-btn" onclick="filterSeverity('MEDIUM')">
+          Medium (<span id="count-MEDIUM">{{ global_counters.MEDIUM }}</span>)
+        </button>
+        <button class="filter-btn" onclick="filterSeverity('LOW')">
+          Low (<span id="count-LOW">{{ global_counters.LOW }}</span>)
+        </button>
+        <button
+          id="btn-warning"
+          class="filter-btn"
+          onclick="filterSeverity('WARNING')"
+        >
+          Warning (<span id="count-WARNING">{{ global_counters.WARNING }}</span
+          >)
+        </button>
+      </div>
+
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          font-size: 10pt;
+          font-weight: 500;
+          background: #f1f5f9;
+          padding: 6px 12px;
+          border-radius: 4px;
+          border: 1px solid var(--border-color);
+        "
+      >
+        <input
+          type="checkbox"
+          id="ignore-warnings-toggle"
+          onchange="toggleWarnings()"
+          style="margin-right: 8px; cursor: pointer"
+        />
+        <label
+          for="ignore-warnings-toggle"
+          style="cursor: pointer; user-select: none"
+          >Ocultar Warnings</label
+        >
+      </div>
+    </div>
+
+    {% for repo in repositories %}
+    <div class="repo-block" id="repo-{{ loop.index }}">
+      <div
+        class="repo-header"
+        onclick="toggleRepo({{ loop.index }})"
+        style="cursor: pointer"
+      >
+        <h2 class="repo-title">
+          <span id="repo-icon-{{ loop.index }}">▶️</span>
+          📁 Repositório: <strong>{{ repo.name }}</strong>
+          <span
+            class="repo-counter-display"
+            style="
+              font-size: 10pt;
+              font-weight: normal;
+              color: #64748b;
+              margin-left: 10px;
+            "
+          >
+            ({{ repo.total_findings }} achados brutos)
+          </span>
+        </h2>
+      </div>
+
+      <div class="repo-content" id="repo-content-{{ loop.index }}">
+        {% if repo.total_findings > 0 %}
+        <table class="findings-table">
+          <thead>
+            <tr>
+              <th style="width: 140px">Maior Severidade</th>
+              <th style="width: 380px">Alvo / Componente</th>
+              <th>Vulnerabilidade(s) Detectada(s)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for group in repo.findings %}
+            <tr
+              class="finding-row"
+              data-severity="{{ group.highest_severity }}"
+            >
+              <td style="vertical-align: middle">
+                <span class="badge {{ group.highest_severity | lower }}">
+                  {{ group.highest_severity }}
+                </span>
+              </td>
+
+              <td style="vertical-align: middle">
+                <span class="target-code">{{ group.target_name }}</span>
+                <span
+                  style="
+                    color: #64748b;
+                    font-size: 9pt;
+                    display: block;
+                    margin-top: 5px;
+                  "
+                >
+                  <strong>Total:</strong>
+                  <span
+                    class="live-counter"
+                    data-total-original="{{ group.vulnerabilities | length }}"
+                    >{{ group.vulnerabilities | length }}</span
+                  >
+                  ocorrências
+                </span>
+              </td>
+
+              <td>
+                <details class="component-details">
+                  <summary>Clique para ver as falhas vinculadas</summary>
+                  <div style="margin-top: 10px">
+                    {% for item in group.vulnerabilities %}
+                    <div
+                      class="vuln-item"
+                      data-tool="{% if 'Semgrep' in item.tool %}semgrep{% elif 'Trivy' in item.tool %}trivy{% else %}other{% endif %}"
+                      data-severity="{{ item.severity }}"
+                      style="padding: 10px; margin-bottom: 8px; background: #ffffff; border-left: 4px solid var(--{{ item.severity | lower }}); border-radius: 0 4px 4px 0;"
+                    >
+                      <strong
+                        style="
+                          font-size: 10.5pt;
+                          color: #0f172a;
+                          display: block;
+                          margin-bottom: 5px;
+                        "
+                      >
+                        {{ item.title }}
+                      </strong>
+                      <span class="tool-tag">
+                        Origem: {{ item.tool }} | Nível: {{ item.severity }}
+                      </span>
+                      <div class="fix-text">
+                        💡 Recomendação: {{ item.fix_suggestion }}
+                      </div>
+                      <p class="details-text">{{ item.description }}</p>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </details>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="no-findings">
+          ✅ Nenhuma vulnerabilidade encontrada para este repositório!
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <script>
+      let currentTool = "ALL";
+      let currentSeverity = "ALL";
+
+      function filterTool(tool) {
+        currentTool = tool;
+        const buttons =
+          event.target.parentElement.querySelectorAll(".filter-btn");
+        buttons.forEach((btn) => btn.classList.remove("active"));
+        event.target.classList.add("active");
+
+        applyFilters();
+        updateSeverityCounters();
+      }
+
+      function filterSeverity(severity) {
+        currentSeverity = severity;
+        const buttons =
+          event.target.parentElement.querySelectorAll(".filter-btn");
+        buttons.forEach((btn) => btn.classList.remove("active"));
+        if (event?.target?.classList.contains("filter-btn")) {
+          event.target.classList.add("active");
+        }
+
+        applyFilters();
+        updateSeverityCounters();
+      }
+
+      function toggleWarnings() {
+        const ignoreWarnings = document.getElementById(
+          "ignore-warnings-toggle",
+        ).checked;
+        const btnWarning = document.getElementById("btn-warning");
+        const btnAll = document.getElementById("btn-all");
+
+        if (ignoreWarnings) {
+          btnWarning.style.display = "none";
+          if (currentSeverity === "WARNING") {
+            currentSeverity = "ALL";
+            btnAll.classList.add("active");
+          }
+        } else {
+          btnWarning.style.display = "inline-block";
+        }
+        applyFilters();
+        updateSeverityCounters();
+      }
+
+      function applyFilters() {
+        const ignoreWarnings = document.getElementById(
+          "ignore-warnings-toggle",
+        ).checked;
+        const rows = document.querySelectorAll(".finding-row");
+
+        rows.forEach((row) => {
+          let rowVisible = false;
+          let activeVulnsInRow = 0;
+
+          const vulnItems = row.querySelectorAll(".vuln-item");
+          vulnItems.forEach((item) => {
+            const tool = item.getAttribute("data-tool");
+            const itemSeverity = item.getAttribute("data-severity"); // CORRIGIDO: Pega a do item individual
+
+            let visible = true;
+
+            if (ignoreWarnings && itemSeverity === "WARNING") visible = false;
+            if (currentSeverity !== "ALL" && itemSeverity !== currentSeverity)
+              visible = false;
+            if (currentTool !== "ALL" && tool !== currentTool) visible = false;
+
+            item.style.display = visible ? "block" : "none";
+            if (visible) {
+              rowVisible = true;
+              activeVulnsInRow++;
+            }
+          });
+
+          row.style.display = rowVisible ? "table-row" : "none";
+
+          // CORRIGIDO (Problema 2): Atualiza o texto X ocorrências em tempo real
+          const liveCounter = row.querySelector(".live-counter");
+          if (liveCounter) {
+            liveCounter.textContent = activeVulnsInRow;
+          }
+        });
+
+        // Oculta repositórios que não possuem linhas visíveis após os filtros cruzados
+        document.querySelectorAll(".repo-block").forEach((block) => {
+          const visibleRows = block.querySelectorAll(
+            ".finding-row:not([style*='display: none'])",
+          );
+          block.style.display = visibleRows.length ? "block" : "none";
+
+          // Atualiza o micro-contador visual do cabeçalho do repositório
+          let totalRepoVisible = 0;
+          visibleRows.forEach((r) => {
+            totalRepoVisible += parseInt(
+              r.querySelector(".live-counter")?.textContent || 0,
+            );
+          });
+          const displayCounter = block.querySelector(".repo-counter-display");
+          if (displayCounter) {
+            displayCounter.innerHTML = `(${totalRepoVisible} achados filtrados)`;
+          }
+        });
+      }
+
+      function toggleRepo(index) {
+        const content = document.getElementById(`repo-content-${index}`);
+        const icon = document.getElementById(`repo-icon-${index}`);
+        const isHidden = window.getComputedStyle(content).display === "none";
+
+        if (isHidden) {
+          content.style.display = "block";
+          icon.textContent = "🔽";
+        } else {
+          content.style.display = "none";
+          icon.textContent = "▶️";
+        }
+      }
+
+      function updateSeverityCounters() {
+        const ignoreWarnings = document.getElementById(
+          "ignore-warnings-toggle",
+        ).checked;
+        const counters = {
+          CRITICAL: 0,
+          HIGH: 0,
+          MEDIUM: 0,
+          LOW: 0,
+          WARNING: 0,
+          ALL: 0,
+        };
+
+        document.querySelectorAll(".vuln-item").forEach((item) => {
+          const tool = item.getAttribute("data-tool");
+          const severity = item.getAttribute("data-severity");
+
+          if (ignoreWarnings && severity === "WARNING") return;
+          if (currentTool !== "ALL" && tool !== currentTool) return;
+
+          counters.ALL += 1;
+          if (counters[severity] !== undefined) {
+            counters[severity] += 1;
+          }
+        });
+
+        // CORRIGIDO (Problema 1): Atualiza os botões dinamicamente sem resetar os estados cruzados
+        Object.keys(counters).forEach((sev) => {
+          const el = document.getElementById(`count-${sev}`);
+          if (el) el.textContent = counters[sev];
+        });
+
+        const cardTotal = document.getElementById("card-total");
+        if (cardTotal) cardTotal.textContent = counters.ALL;
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        applyFilters();
+        updateSeverityCounters();
+      });
+    </script>
+  </body>
+</html>
