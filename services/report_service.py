@@ -147,28 +147,29 @@ def generate_html_report(json_path, template_name="report_template.html"):
                 target_file = artifact_loc.get("uri", "Arquivo desconhecido")
                 start_line = phys_loc.get("region", {}).get("startLine", "?")
 
-            # -----------------------------------------------------------------
-            # MODIFICAÇÃO: Limpeza Dinâmica baseada na Pasta Pai Escolhida
-            # -----------------------------------------------------------------
+
             if tool_name == "Semgrep OSS" and os.path.isabs(target_file):
                 if repo_path:
-                    # 1. Normaliza as barras para o padrão do sistema operacional atual
+                    # 1. Normaliza as barras para evitar conflitos de sistema (\ vs /)
                     target_clean = os.path.normpath(target_file)
                     repo_clean = os.path.normpath(repo_path)
                     
-                    # 2. Descobre o nome da pasta pai selecionada (ex: easyQMS)
-                    parent_folder_name = os.path.basename(repo_clean)
+                    # 2. Extrai o nome da pasta do repositório (ex: "easyeco-third-party-sap")
+                    # Como repo_path veio "easyeco-third-party-sap/semgrep_report.sarif", pegamos a primeira parte:
+                    repo_project_name = repo_clean.split(os.sep)[0]
                     
-                    # 3. Se o arquivo estiver dentro do caminho escaneado
-                    if target_clean.startswith(repo_clean):
-                        # Remove o caminho absoluto anterior e mantém a estrutura interna
-                        relative_path = target_clean[len(repo_clean):].lstrip(os.sep)
-                        # Reconstrói partindo do nome da pasta pai escolhida
-                        target_file = os.path.join(parent_folder_name, relative_path)
+                    # Criamos um padrão de busca seguro com barras, ex: "/easyeco-third-party-sap/"
+                    search_pattern = os.sep + repo_project_name + os.sep
+                    
+                    # 3. Se o nome da pasta do projeto estiver no caminho absoluto do arquivo
+                    if search_pattern in target_clean:
+                        # Encontra onde a pasta do projeto começa e corta tudo para trás
+                        idx = target_clean.find(search_pattern)
+                        target_file = target_clean[idx:].lstrip(os.sep)
                     
                     # 4. Garante barras para frente (/) para o relatório HTML (padrão web)
                     target_file = target_file.replace("\\", "/")
-            # -----------------------------------------------------------------
+
 
             # Monta textos baseados no dicionário de regras do SARIF
             title = rule.get("shortDescription", {}).get("text", rule_id)
