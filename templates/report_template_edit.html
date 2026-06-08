@@ -666,31 +666,61 @@
 
       // EXPORTADOR NATIVO DO NOVO ARQUIVO SARIF
       function exportNewSarif() {
-        if (!sarifData.runs) {
+        if (!sarifData || !sarifData.runs) {
           alert("Nenhum dado válido carregado para exportação.");
           return;
         }
 
-        // Clona o objeto de triagem em memória profunda para higienizar antes do download
-        const payloadFinal = JSON.parse(JSON.stringify(sarifData));
+        // Otimização 1: Em vez de clonar o objeto INTEIRO com JSON.parse/stringify (que gasta muita RAM),
+        // clonamos apenas a estrutura rasa e mapeamos as runs/results.
+        const payloadFinal = {
+          ...sarifData,
+          runs: sarifData.runs.map((run) => {
+            if (run.results) {
+              return {
+                ...run,
+                // Filtra removendo os itens marcados com a tag de deleção (__deleted)
+                // e remove a propriedade temporária __deleted para limpar o arquivo final
+                results: run.results
+                  .filter((res) => !res.__deleted)
+                  .map(({ __deleted, ...rest }) => rest), // Limpa a propriedade indesejada de forma limpa
+              };
+            }
+            return run;
+          }),
+        };
 
-        payloadFinal.runs.forEach((run) => {
-          if (run.results) {
-            // Filtra removendo os itens marcados com a tag de deleção (__deleted)
-            run.results = run.results.filter((res) => !res.__deleted);
-          }
-        });
+        try {
+          // Otimização 2: Transforma em string (removi o recuo de 2 espaços "null, 2" para reduzir o tamanho do arquivo,
+          // mas se a formatação bonita for crucial, pode voltar o ", null, 2")
+          const jsonString = JSON.stringify(payloadFinal);
 
-        // Gera o blob de transferência de download nativo do arquivo JSON formatado como .sarif
-        const dataStr =
-          "data:text/json;charset=utf-8," +
-          encodeURIComponent(JSON.stringify(payloadFinal, null, 2));
-        const downloaderNode = document.createElement("a");
-        downloaderNode.setAttribute("href", dataStr);
-        downloaderNode.setAttribute("download", "relatorio_scan_triado.sarif");
-        document.body.appendChild(downloaderNode);
-        downloaderNode.click();
-        downloaderNode.remove();
+          // Otimização 3: Cria um Blob. Isso joga o ponteiro do arquivo direto para o navegador gerenciar
+          const blob = new Blob([jsonString], {
+            type: "application/json;charset=utf-8",
+          });
+
+          // Cria a URL segura para o Blob
+          const url = URL.createObjectURL(blob);
+
+          // Cria o elemento de download
+          const downloaderNode = document.createElement("a");
+          downloaderNode.href = url;
+          downloaderNode.download = "relatorio_scan_triado.sarif";
+
+          // Dispara o clique
+          document.body.appendChild(downloaderNode);
+          downloaderNode.click();
+
+          // Otimização 4: Limpeza da árvore DOM e da memória RAM (Revoke)
+          downloaderNode.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 100); // Aguarda um breve instante e limpa a URL da memória
+        } catch (error) {
+          console.error("Erro ao exportar o arquivo SARIF:", error);
+          alert(
+            "Ocorreu um erro ao gerar o arquivo. O arquivo pode ser grande demais para a memória do navegador.",
+          );
+        }
       }
 
       // Inicia executando os filtros básicos após o carregamento da DOM
