@@ -248,7 +248,7 @@ class SecurityToolApp:
         actions_frame = ttk.Frame(frame)
         actions_frame.pack(fill="x", pady=8)
         
-        ttk.Button(actions_frame, text="Concat JSONs", command=self.concat_reports).pack(fill="x", pady=15)
+        ttk.Button(actions_frame, text="Concat SARIF", command=self.concat_reports).pack(fill="x", pady=15)
         ttk.Button(actions_frame, text="Build HTML Dashboard", command=self.generate_report).pack(fill="x", pady=8)
 
     def choose_scan_directory(self):

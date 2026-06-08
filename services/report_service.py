@@ -147,6 +147,29 @@ def generate_html_report(json_path, template_name="report_template.html"):
                 target_file = artifact_loc.get("uri", "Arquivo desconhecido")
                 start_line = phys_loc.get("region", {}).get("startLine", "?")
 
+            # -----------------------------------------------------------------
+            # MODIFICAÇÃO: Limpeza Dinâmica baseada na Pasta Pai Escolhida
+            # -----------------------------------------------------------------
+            if tool_name == "Semgrep OSS" and os.path.isabs(target_file):
+                if repo_path:
+                    # 1. Normaliza as barras para o padrão do sistema operacional atual
+                    target_clean = os.path.normpath(target_file)
+                    repo_clean = os.path.normpath(repo_path)
+                    
+                    # 2. Descobre o nome da pasta pai selecionada (ex: easyQMS)
+                    parent_folder_name = os.path.basename(repo_clean)
+                    
+                    # 3. Se o arquivo estiver dentro do caminho escaneado
+                    if target_clean.startswith(repo_clean):
+                        # Remove o caminho absoluto anterior e mantém a estrutura interna
+                        relative_path = target_clean[len(repo_clean):].lstrip(os.sep)
+                        # Reconstrói partindo do nome da pasta pai escolhida
+                        target_file = os.path.join(parent_folder_name, relative_path)
+                    
+                    # 4. Garante barras para frente (/) para o relatório HTML (padrão web)
+                    target_file = target_file.replace("\\", "/")
+            # -----------------------------------------------------------------
+
             # Monta textos baseados no dicionário de regras do SARIF
             title = rule.get("shortDescription", {}).get("text", rule_id)
             
